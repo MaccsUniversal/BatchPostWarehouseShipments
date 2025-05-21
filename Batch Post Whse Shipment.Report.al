@@ -83,6 +83,9 @@ report 50100 "Batch Post Warehouse Shpt Doc."
     var
         WhseBatchPostShipment: Codeunit "Whse.-Batch Post Shipment";
     begin
+        if not ConfirmPostingDate(PostingDate) then
+            exit;
+
         FindWhseShptHeaderSet();
         WhseBatchPostShipment.SetParameters(true, ShipandInvoice);
         WhseBatchPostShipment.SetWhseShptHeader("Warehouse Shipment Header");
@@ -100,6 +103,30 @@ report 50100 "Batch Post Warehouse Shpt Doc."
         "Warehouse Shipment Header".FindSet();
 
         OnAfterFindWarehouseShipmentHeaderSet("Warehouse Shipment Header");
+    end;
+
+    local procedure ConfirmPostingDate(var PostingDate: Date): Boolean
+    var
+        HideDialog: Boolean;
+        DefaultOption: Boolean;
+        Result: Boolean;
+        Answer: Boolean;
+    begin
+        HideDialog := false;
+        DefaultOption := false;
+        Result := true;
+        OnBeforeConfirmPostingDate(HideDialog, PostingDate, DefaultOption, Result);
+
+        if HideDialog then
+            exit(Result);
+
+        Answer := Confirm(Text000, DefaultOption, PostingDate);
+        if not Answer then
+            exit(false);
+
+        OnAfterConfirmPostingDate(PostingDate);
+
+        exit(Result)
     end;
 
     local procedure CheckAllowedPostingDate(var PostingDate: Date): Boolean
@@ -123,7 +150,13 @@ report 50100 "Batch Post Warehouse Shpt Doc."
         Ship: Boolean;
         ShipandInvoice: Boolean;
         PostingDate: Date;
+        Text000: Label 'Are you sure you want to Post Shipments to the Posting Date %1?';
 
+
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterConfirmPostingDate(var PostingDate: Date)
+    begin
+    end;
 
     [IntegrationEvent(false, false)]
     local procedure OnAfterCheckAllowedPostingDate(PostingDate: Date)
@@ -142,6 +175,11 @@ report 50100 "Batch Post Warehouse Shpt Doc."
 
     [IntegrationEvent(false, false)]
     local procedure OnBeforeFindWarehouseShipmentHeaderSet(WhseShptHeader: Record "Warehouse Shipment Header"; var IsHandled: Boolean)
+    begin
+    end;
+
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeConfirmPostingDate(var HideDialog: Boolean; var PostingDate: Date; var DefaultOption: Boolean; var Result: Boolean)
     begin
     end;
 

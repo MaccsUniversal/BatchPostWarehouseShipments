@@ -33,7 +33,7 @@ pageextension 50100 "Warehouse Shipment List MOO" extends "Warehouse Shipment Li
                     RecRef.GetTable(WarehouseShipmentHeader);
                     WarehouseShipmentHeader.SetFilter("No.", SelectionFilterManagement.GetSelectionFilter(RecRef, Rec.FieldNo("No.")));
                     Report.RunModal(Report::"Batch Post Warehouse Shpt Doc.", true, false, WarehouseShipmentHeader);
-                    CurrPage.Update(false);
+                    CurrPage.Update(true);
                 end;
             }
         }

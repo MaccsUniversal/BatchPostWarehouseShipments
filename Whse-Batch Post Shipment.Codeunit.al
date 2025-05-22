@@ -5,28 +5,76 @@ codeunit 50100 "Whse.-Batch Post Shipment"
 
     trigger OnRun()
     begin
+        BindSubscription(SkipTestPostingDate);
+        BindSubscription(HidePostShptDialog);
+        BindSubscription(GetResultMessage);
+        SkipTestPostingDate.SetParameter(BatchPost);
+        HidePostShptDialog.SetParameters(BatchPost, ShipAndInvoice);
+        GetResultMessage.SetParameters(BatchPost, TotalShipments);
         if not BatchPost then
-            exit;
+            Error(ErrorInfo.Create(Text000));
+
         PostShipment(WhseShptHdr);
+        UnbindSubscription(SkipTestPostingDate);
+        UnbindSubscription(HidePostShptDialog);
+        UnbindSubscription(GetResultMessage);
     end;
 
     var
-        ShipandInvoice: Boolean;
+        ShipAndInvoice: Boolean;
         PostingDate: Date;
         BatchPost: Boolean;
         ShipmentCount: Integer;
         TotalShipments: Integer;
         WhseShptHdr: Record "Warehouse Shipment Header";
+        Text000: Label 'Batch Post is not set to true. Please set BatchPost parameter to true before running the Report.';
+        Text001: Label 'The Posting Date for each Warehouse Shipment in this batch have not been updated. Are you sure you want to continue?';
+        SkipTestPostingDate: Codeunit "Skip Test Posting Date - WBP";
+        HidePostShptDialog: Codeunit "Hide Post Shpt. Dialog - WBP";
+        GetResultMessage: Codeunit "Get Result Message - WBP";
 
-    procedure SetParameters(BatchPost: Boolean; var ShipandInvoice: Boolean)
+    procedure SetParameters(BatchPost: Boolean; var ShipAndInvoice: Boolean; var PostingDate: Date)
     begin
         this.BatchPost := BatchPost;
-        this.ShipandInvoice := ShipandInvoice;
+        this.ShipAndInvoice := ShipAndInvoice;
+        this.PostingDate := PostingDate;
     end;
 
     procedure SetWhseShptHeader(var WhseShptHdr: Record "Warehouse Shipment Header")
+    var
+        ContinueToPostShipments: Boolean;
     begin
-        this.WhseShptHdr := WhseShptHdr;
+        TotalShipments := WhseShptHdr.Count();
+        UpdateShipmentPostingDates(WhseShptHdr, PostingDate);
+    end;
+
+    local procedure UpdateShipmentPostingDates(var WarehouseShipmentHeader: Record "Warehouse Shipment Header"; var PostingDate: Date): Boolean
+    var
+        IsHandled: Boolean;
+        Result: Boolean;
+        Count: Integer;
+    begin
+        IsHandled := false;
+        Result := true;
+
+        OnBeforeUpdateShipmentPostingDate(IsHandled, Result);
+
+        if IsHandled then
+            exit(Result);
+
+        WarehouseShipmentHeader.FindSet();
+        repeat
+            WarehouseShipmentHeader."Posting Date" := PostingDate;
+            if WarehouseShipmentHeader.Modify() then
+                Count += 1;
+        until WarehouseShipmentHeader.Next <= 0;
+
+        if Count = WarehouseShipmentHeader.Count() then
+            Result := true;
+
+        OnAfterUpdateShipmentPostingDates(WarehouseShipmentHeader);
+        WhseShptHdr.Copy(WarehouseShipmentHeader);
+        exit(Result);
     end;
 
     local procedure PostShipment(var WhseShptHeader: Record "Warehouse Shipment Header")
@@ -36,10 +84,10 @@ codeunit 50100 "Whse.-Batch Post Shipment"
     begin
         BindSubscription(this);
         WhseShptHeader.FindSet();
-        TotalShipments := WhseShptHeader.Count();
         ShipmentCount := 0;
         repeat
             ShipmentCount += 1;
+            GetResultMessage.SetShipmentCount(ShipmentCount);
             GetLinesForRec(WhseShptLine, WhseShptHeader);
             WhsePostShipmentYesNo.Run(WhseShptLine);
         until WhseShptHeader.Next() <= 0;
@@ -52,31 +100,14 @@ codeunit 50100 "Whse.-Batch Post Shipment"
         WhseShptLine.FindSet();
     end;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Whse.-Post Shipment (Yes/No)", OnBeforeConfirmWhseShipmentPost, '', true, true)]
-    local procedure SetParameterOnBeforeConfirmWhseShipmentPost(var HideDialog: Boolean; var Invoice: Boolean; var IsPosted: Boolean)
-    var
-        UserSetupManagement: Codeunit "User Setup Management";
+    [IntegrationEvent(false, false)]
+    local procedure OnBeforeUpdateShipmentPostingDate(var IsHandled: Boolean; var Result: Boolean)
     begin
-        if this.BatchPost then begin
-            UserSetupManagement.GetSalesInvoicePostingPolicy(HideDialog, Invoice);
-            HideDialog := true;
-            Invoice := ShipandInvoice;
-            IsPosted := false;
-        end;
-
     end;
 
-    [EventSubscriber(ObjectType::Codeunit, Codeunit::"Whse.-Post Shipment", OnGetResultMessageOnBeforeShowMessage, '', true, true)]
-    local procedure OnGetBatchResultMessageOnBeforeShowMessage(var CounterSourceDocOK: Integer; var CounterSourceDocTotal: Integer; var IsHandled: Boolean)
+    [IntegrationEvent(false, false)]
+    local procedure OnAfterUpdateShipmentPostingDates(var WhseShptHdr: Record "Warehouse Shipment Header")
     begin
-        if this.ShipmentCount <> 0 then
-            exit;
-
-        if this.BatchPost then begin
-            CounterSourceDocOK := this.ShipmentCount;
-            CounterSourceDocTotal := this.TotalShipments;
-            IsHandled := false;
-        end;
     end;
 
 }

@@ -87,7 +87,7 @@ report 50100 "Batch Post Warehouse Shpt Doc."
             exit;
 
         FindWhseShptHeaderSet();
-        WhseBatchPostShipment.SetParameters(true, ShipandInvoice);
+        WhseBatchPostShipment.SetParameters(true, ShipandInvoice, PostingDate);
         WhseBatchPostShipment.SetWhseShptHeader("Warehouse Shipment Header");
         WhseBatchPostShipment.Run();
     end;
@@ -150,7 +150,7 @@ report 50100 "Batch Post Warehouse Shpt Doc."
         Ship: Boolean;
         ShipandInvoice: Boolean;
         PostingDate: Date;
-        Text000: Label 'Are you sure you want to Post Shipments to the Posting Date %1?';
+        Text000: Label 'All Posting Dates will be Replaced the date %1. Are you sure you want to Post Shipments and Invoices to the Posting Date %1?';
 
 
     [IntegrationEvent(false, false)]
@@ -159,22 +159,22 @@ report 50100 "Batch Post Warehouse Shpt Doc."
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnAfterCheckAllowedPostingDate(PostingDate: Date)
+    local procedure OnAfterCheckAllowedPostingDate(var PostingDate: Date)
     begin
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnAfterFindWarehouseShipmentHeaderSet(WhseShptHeader: Record "Warehouse Shipment Header")
+    local procedure OnAfterFindWarehouseShipmentHeaderSet(var WhseShptHeader: Record "Warehouse Shipment Header")
     begin
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeCheckAllowedPostingDate(PostingDate: Date; var IsHandled: Boolean; var Result: Boolean)
+    local procedure OnBeforeCheckAllowedPostingDate(var PostingDate: Date; var IsHandled: Boolean; var Result: Boolean)
     begin
     end;
 
     [IntegrationEvent(false, false)]
-    local procedure OnBeforeFindWarehouseShipmentHeaderSet(WhseShptHeader: Record "Warehouse Shipment Header"; var IsHandled: Boolean)
+    local procedure OnBeforeFindWarehouseShipmentHeaderSet(var WhseShptHeader: Record "Warehouse Shipment Header"; var IsHandled: Boolean)
     begin
     end;
 

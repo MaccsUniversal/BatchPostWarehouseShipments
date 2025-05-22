@@ -3,19 +3,25 @@ codeunit 50100 "Whse.-Batch Post Shipment"
 {
     EventSubscriberInstance = Manual;
 
+    trigger OnRun()
+    begin
+        if not BatchPost then
+            exit;
+        PostShipment(WhseShptHdr);
+    end;
+
     var
         ShipandInvoice: Boolean;
+        PostingDate: Date;
         BatchPost: Boolean;
         ShipmentCount: Integer;
-        ShipmentCountTotal: Integer;
+        TotalShipments: Integer;
         WhseShptHdr: Record "Warehouse Shipment Header";
-
 
     procedure SetParameters(BatchPost: Boolean; var ShipandInvoice: Boolean)
     begin
         this.BatchPost := BatchPost;
         this.ShipandInvoice := ShipandInvoice;
-        this.ShipmentCountTotal := ShipmentCountTotal;
     end;
 
     procedure SetWhseShptHeader(var WhseShptHdr: Record "Warehouse Shipment Header")
@@ -23,21 +29,20 @@ codeunit 50100 "Whse.-Batch Post Shipment"
         this.WhseShptHdr := WhseShptHdr;
     end;
 
-    trigger OnRun()
-    begin
-        if not BatchPost then
-            exit;
-        PostShipmentYesNo(WhseShptHdr);
-    end;
-
-    local procedure PostShipmentYesNo(var WhseShptHeader: Record "Warehouse Shipment Header")
+    local procedure PostShipment(var WhseShptHeader: Record "Warehouse Shipment Header")
     var
         WhseShptLine: Record "Warehouse Shipment Line";
         WhsePostShipmentYesNo: Codeunit "Whse.-Post Shipment (Yes/No)";
     begin
-        GetLinesForRec(WhseShptLine, WhseShptHeader);
         BindSubscription(this);
-        WhsePostShipmentYesNo.Run(WhseShptLine);
+        WhseShptHeader.FindSet();
+        TotalShipments := WhseShptHeader.Count();
+        ShipmentCount := 0;
+        repeat
+            ShipmentCount += 1;
+            GetLinesForRec(WhseShptLine, WhseShptHeader);
+            WhsePostShipmentYesNo.Run(WhseShptLine);
+        until WhseShptHeader.Next() <= 0;
         UnbindSubscription(this);
     end;
 
@@ -68,8 +73,8 @@ codeunit 50100 "Whse.-Batch Post Shipment"
             exit;
 
         if this.BatchPost then begin
-            CounterSourceDocOK := (this.ShipmentCountTotal - this.ShipmentCount + 1);
-            CounterSourceDocTotal := this.ShipmentCountTotal;
+            CounterSourceDocOK := this.ShipmentCount;
+            CounterSourceDocTotal := this.TotalShipments;
             IsHandled := false;
         end;
     end;
